@@ -1,0 +1,59 @@
+package com.macrorecorder.app;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+public class MacroScript {
+    private String id, name, description;
+    private List<MacroEvent> events;
+    private long createdAt, modifiedAt, totalDuration;
+    private int loopCount;
+    private boolean loopInfinite;
+    private float playbackSpeed;
+
+    public MacroScript() {
+        this.id = UUID.randomUUID().toString();
+        this.events = new ArrayList<>();
+        this.createdAt = System.currentTimeMillis();
+        this.modifiedAt = System.currentTimeMillis();
+        this.loopCount = 1;
+        this.playbackSpeed = 1.0f;
+        this.name = "Script " + id.substring(0, 6);
+    }
+
+    public MacroScript(String name) { this(); this.name = name; }
+
+    public void addEvent(MacroEvent event) {
+        events.add(event);
+        recalcDuration();
+    }
+
+    public void removeEvent(int i) {
+        if (i >= 0 && i < events.size()) { events.remove(i); recalcDuration(); }
+    }
+
+    private void recalcDuration() {
+        totalDuration = 0;
+        for (MacroEvent e : events) totalDuration += e.getDuration() + e.getDelayAfter();
+    }
+
+    public String getId() { return id; }
+    public String getName() { return name; }
+    public void setName(String n) { this.name = n; }
+    public List<MacroEvent> getEvents() { return events; }
+    public void setEvents(List<MacroEvent> e) { this.events = e; recalcDuration(); }
+    public int getEventCount() { return events.size(); }
+    public int getLoopCount() { return loopCount; }
+    public void setLoopCount(int c) { this.loopCount = c; }
+    public boolean isLoopInfinite() { return loopInfinite; }
+    public void setLoopInfinite(boolean b) { this.loopInfinite = b; }
+    public float getPlaybackSpeed() { return playbackSpeed; }
+    public void setPlaybackSpeed(float s) { this.playbackSpeed = s; }
+    public long getTotalDuration() { return totalDuration; }
+    public long getModifiedAt() { return modifiedAt; }
+    public String getFormattedDuration() {
+        long s = totalDuration / 1000;
+        return String.format("%02d:%02d", s / 60, s % 60);
+    }
+}
