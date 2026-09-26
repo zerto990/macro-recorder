@@ -1,0 +1,70 @@
+package com.macrorecorder.app;
+
+import android.app.*;
+import android.content.Intent;
+import android.os.*;
+import androidx.core.app.NotificationCompat;
+import java.util.*;
+
+public class MacroRecorderService extends Service {
+    private final IBinder binder = new LocalBinder();
+    private RootCommandExecutor root;
+    private MacroPlayer player;
+    private MacroStorageManager storage;
+    private boolean recording = false;
+    private MacroScript currentScript;
+    private List<MacroEvent> recordedEvents;
+    private long lastEventTime;
+
+    public class LocalBinder extends Binder {
+        public MacroRecorderService getService() { return MacroRecorderService.this; }
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        root = new RootCommandExecutor();
+        player = new MacroPlayer(root);
+        storage = new MacroStorageManager(this);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel ch = new NotificationChannel("macro_ch", "Macro", NotificationManager.IMPORTANCE_LOW);
+            getSystemService(NotificationManager.class).createNotificationChannel(ch);
+        }
+        startForeground(1, new NotificationCompat.Builder(this, "macro_ch")
+                .setContentTitle("Macro Recorder").setContentText("Готов")
+                .setSmallIcon(android.R.drawable.ic_media_play).build());
+    }
+
+    public void startRecording() {
+        if (recording) return;
+        recording = true;
+        recordedEvents = new ArrayList<>();
+        currentScript = new MacroScript("Запись " + System.currentTimeMillis());
+        lastEventTime = 0;
+    }
+
+    public void addTapEvent(float x, float y) {
+        if (!recording) return;
+        long delay = lastEventTime > 0 ? System.currentTimeMillis() - lastEventTime : 0;
+        recordedEvents.add(MacroEvent.createTap(x, y, delay));
+        lastEventTime = System.currentTimeMillis();
+    }
+
+    public MacroScript stopRecording() {
+        if (!recording) return null;
+        recording = false;
+        currentScript.setEvents(recordedEvents);
+        storage.save(currentScript);
+        return currentScript;
+    }
+
+    public void playScript(MacroScript script) { player.play(script); }
+    public void stopPlayback() { player.stop(); }
+    public RootCommandExecutor getRoot() { return root; }
+    public MacroPlayer getPlayer() { return player; }
+    public MacroStorageManager getStorage() { return storage; }
+    public boolean isRecording() { return recording; }
+
+    @Override public IBinder onBind(Intent i) { return binder; }
+    @Override public void onDestroy() { super.onDestroy(); if (recording) stopRecording(); player.stop(); root.destroy(); }
+}
