@@ -1,1 +1,67 @@
+package com.macrorecorder.app;
 
+public class MacroEvent {
+    public enum EventType { TAP, LONG_PRESS, SWIPE, DELAY, KEY_EVENT, TEXT_INPUT }
+    private EventType type;
+    private float x, y, x2, y2;
+    private long duration, delayAfter, timestamp;
+    private int keyCode;
+    private String text, description;
+
+    public MacroEvent() {}
+
+    public static MacroEvent createTap(float x, float y, long delay) {
+        MacroEvent e = new MacroEvent();
+        e.type = EventType.TAP; e.x = x; e.y = y;
+        e.duration = 100; e.delayAfter = delay;
+        e.timestamp = System.currentTimeMillis();
+        e.description = String.format("Tap (%.0f, %.0f)", x, y);
+        return e;
+    }
+
+    public static MacroEvent createSwipe(float x1, float y1, float x2, float y2, long dur, long delay) {
+        MacroEvent e = new MacroEvent();
+        e.type = EventType.SWIPE; e.x = x1; e.y = y1; e.x2 = x2; e.y2 = y2;
+        e.duration = dur; e.delayAfter = delay;
+        e.timestamp = System.currentTimeMillis();
+        e.description = String.format("Swipe (%.0f,%.0f)->(%.0f,%.0f)", x1, y1, x2, y2);
+        return e;
+    }
+
+    public static MacroEvent createLongPress(float x, float y, long dur, long delay) {
+        MacroEvent e = new MacroEvent();
+        e.type = EventType.LONG_PRESS; e.x = x; e.y = y;
+        e.duration = dur; e.delayAfter = delay;
+        e.timestamp = System.currentTimeMillis();
+        e.description = String.format("LongPress (%.0f, %.0f)", x, y);
+        return e;
+    }
+
+    public static MacroEvent createDelay(long delay) {
+        MacroEvent e = new MacroEvent();
+        e.type = EventType.DELAY; e.delayAfter = delay;
+        e.timestamp = System.currentTimeMillis();
+        e.description = "Delay " + delay + "ms";
+        return e;
+    }
+
+    public static MacroEvent createKeyEvent(int keyCode, long delay) {
+        MacroEvent e = new MacroEvent();
+        e.type = EventType.KEY_EVENT; e.keyCode = keyCode; e.delayAfter = delay;
+        e.timestamp = System.currentTimeMillis();
+        e.description = "Key " + keyCode;
+        return e;
+    }
+
+    public EventType getType() { return type; }
+    public float getX() { return x; }
+    public float getY() { return y; }
+    public float getX2() { return x2; }
+    public float getY2() { return y2; }
+    public long getDuration() { return duration; }
+    public long getDelayAfter() { return delayAfter; }
+    public int getKeyCode() { return keyCode; }
+    public String getText() { return text; }
+    public String getDescription() { return description; }
+    public void setDelayAfter(long d) { this.delayAfter = d; }
+}
