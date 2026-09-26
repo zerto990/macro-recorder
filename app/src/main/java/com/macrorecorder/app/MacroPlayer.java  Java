@@ -1,0 +1,74 @@
+package com.macrorecorder.app;
+
+import android.os.Handler;
+import android.os.Looper;
+import java.util.List;
+
+public class MacroPlayer {
+    public interface Listener {
+        void onStarted();
+        void onProgress(int cur, int total, int loop, int totalLoops);
+        void onPaused();
+        void onResumed();
+        void onStopped();
+        void onFinished();
+        void onError(String err);
+    }
+
+    private final RootCommandExecutor root;
+    private Listener listener;
+    private Thread thread;
+    private volatile boolean playing = false, paused = false, stop = false;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+
+    public MacroPlayer(RootCommandExecutor root) { this.root = root; }
+    public void setListener(Listener l) { this.listener = l; }
+
+    public void play(MacroScript script) {
+        if (playing) stop();
+        stop = false; paused = false; playing = true;
+        thread = new Thread(() -> {
+            try {
+                notify(l -> l.onStarted());
+                int totalLoops = script.isLoopInfinite() ? -1 : script.getLoopCount();
+                float speed = script.getPlaybackSpeed();
+                int loop = 0;
+                while (!stop) {
+                    loop++;
+                    if (!script.isLoopInfinite() && loop > totalLoops) break;
+                    List<MacroEvent> events = script.getEvents();
+                    for (int i = 0; i < events.size() && !stop; i++) {
+                        while (paused && !stop) Thread.sleep(100);
+                        if (stop) break;
+                        final int ci = i, cl = loop;
+                        notify(l -> l.onProgress(ci, events.size(), cl, totalLoops));
+                        MacroEvent e = events.get(i);
+                        switch (e.getType()) {
+                            case TAP: root.tap(e.getX(), e.getY()); break;
+                            case LONG_PRESS: long ld = (long)(e.getDuration()/speed); root.longPress(e.getX(), e.getY(), ld); Thread.sleep(ld); break;
+                            case SWIPE: long sd = (long)(e.getDuration()/speed); root.swipe(e.getX(), e.getY(), e.getX2(), e.getY2(), sd); Thread.sleep(sd); break;
+                            case KEY_EVENT: root.keyEvent(e.getKeyCode()); break;
+                            case TEXT_INPUT: root.text(e.getText()); break;
+                            case DELAY: Thread.sleep((long)(e.getDelayAfter()/speed)); break;
+                        }
+                        long delay = (long)(e.getDelayAfter() / speed);
+                        if (delay > 0) Thread.sleep(delay);
+                    }
+                }
+                if (!stop) notify(l -> l.onFinished()); else notify(l -> l.onStopped());
+            } catch (Exception ex) { notify(l -> l.onError(ex.getMessage())); }
+            finally { playing = false; }
+        });
+        thread.start();
+    }
+
+    public void pause() { paused = true; notify(l -> l.onPaused()); }
+    public void resume() { paused = false; notify(l -> l.onResumed()); }
+    public void stop() { stop = true; paused = false; if (thread != null) thread.interrupt(); playing = false; }
+    public boolean isPlaying() { return playing; }
+    public boolean isPaused() { return paused; }
+
+    private void notify(java.util.function.Consumer<Listener> action) {
+        handler.post(() -> { if (listener != null) action.accept(listener); });
+    }
+}
